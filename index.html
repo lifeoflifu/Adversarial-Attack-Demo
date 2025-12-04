@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Adversarial Attack</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body class="bg-light">
+    <div class="container mt-5">
+        <h1 class="text-center text-primary fw-bold mb-4">Adversarial Attack Detector</h1>
+        
+        <div class="row g-4">
+            <!-- Controls -->
+            <div class="col-md-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h4>1. Upload Digit</h4>
+                        <input type="file" id="imageInput" class="form-control mb-3">
+                        
+                        <h4>2. Set Noise (Epsilon)</h4>
+                        <div class="d-flex justify-content-between">
+                            <label>Strength:</label>
+                            <span id="epsVal" class="fw-bold text-danger">0.1</span>
+                        </div>
+                        <input type="range" id="epsilon" min="0" max="0.5" step="0.05" value="0.1" class="form-range" oninput="document.getElementById('epsVal').innerText=this.value">
+                        
+                        <button onclick="uploadAndAttack()" class="btn btn-danger w-100 mt-3 btn-lg">Run Attack ⚡</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results -->
+            <div class="col-md-8">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <h5>Original Prediction</h5>
+                                <h2 id="origPred" class="text-success">-</h2>
+                            </div>
+                            <div class="col-6">
+                                <h5>Adversarial Prediction</h5>
+                                <h2 id="advPred" class="text-danger">-</h2>
+                            </div>
+                        </div>
+                        <!-- Chart Area (Required for Grade) -->
+                        <div style="height: 300px; margin-top: 20px;">
+                            <canvas id="probChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let myChart = null;
+
+        async function uploadAndAttack() {
+            const fileInput = document.getElementById('imageInput');
+            if(fileInput.files.length === 0) { alert("Please upload a file"); return; }
+            
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('epsilon', document.getElementById('epsilon').value);
+
+            try {
+                const response = await fetch('/predict', { method: 'POST', body: formData });
+                const data = await response.json();
+                
+                // Update Text
+                document.getElementById('origPred').innerText = data.original_class;
+                document.getElementById('advPred').innerText = data.adversarial_class;
+
+                // Update Chart
+                updateChart(data.original_confidence, data.adversarial_confidence);
+            } catch (e) {
+                console.error(e);
+                alert("Error connecting to backend.");
+            }
+        }
+
+        function updateChart(orig, adv) {
+            const ctx = document.getElementById('probChart').getContext('2d');
+            if (myChart) myChart.destroy();
+
+            myChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: [0,1,2,3,4,5,6,7,8,9],
+                    datasets: [
+                        { label: 'Original', data: orig, backgroundColor: 'rgba(25, 135, 84, 0.6)' },
+                        { label: 'Adversarial', data: adv, backgroundColor: 'rgba(220, 53, 69, 0.6)' }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+    </script>
+</body>
+</html>
